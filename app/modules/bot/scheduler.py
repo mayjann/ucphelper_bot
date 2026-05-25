@@ -10,7 +10,7 @@ from aiogram.exceptions import TelegramBadRequest
 class Scheduler:
     STAGNATION_THRESHOLD = 5
 
-    def __init__(self, bot, dp, check_ucp, auth_state, user_id, chat_id, msg_id, logger):
+    def __init__(self, bot, dp, check_ucp, auth_state, user_id, chat_id, msg_id):
         self.bot = bot
         self.dp = dp
         self.check_ucp = check_ucp
@@ -18,7 +18,6 @@ class Scheduler:
         self.user_id = user_id
         self.chat_id = chat_id
         self.msg_id = msg_id
-        self.logger = logger
 
         self.stagnation = False
         self.stagnation_first_alert = False
@@ -33,11 +32,9 @@ class Scheduler:
             return
 
     async def _parse(self):
-        self.logger.info("Старт проверки UCP")
         res = await self.check_ucp()
 
         if res == "NO_SESSION":
-            self.logger.warning("Нет сессии (NO_SESSION)")
 
             if auth["awaiting"]:
                 return None
@@ -62,7 +59,6 @@ class Scheduler:
         if count is None:
             return
 
-        self.logger.info(f"Количество заявлений: {count}")
         if count != self.last_count:
             await self._edit(count)
             self.last_count = count
@@ -72,12 +68,10 @@ class Scheduler:
             self.stagnation_first_alert = False
             self.global_tick = 0
             self.stagnation_tick = 0
-            self.logger.warning("Застой начался")
             return
 
         if count < self.STAGNATION_THRESHOLD:
             if self.stagnation and self.stagnation_first_alert:
-                self.logger.info(f"Застой завершён, текущее значение: {count}")
                 await self.bot.send_message(self.chat_id, f"[UCP] {count} заявлений. Застой закончился")
 
             self.stagnation = False
@@ -85,21 +79,16 @@ class Scheduler:
             self.global_tick = 0
             self.stagnation_tick = 0
 
-            self.logger.info("Сброс состояния застоя")
             return
 
         if self.stagnation:
             self.global_tick += 1
-            self.logger.debug(f"global_tick = {self.global_tick}")
 
             if self.stagnation_first_alert:
                 self.stagnation_tick += 1
-                self.logger.debug(f"stagnation_tick = {self.stagnation_tick}")
 
         if self.stagnation and not self.stagnation_first_alert and self.global_tick == 2:
             self.stagnation_first_alert = True
-
-            self.logger.warning("Первое сообщение о застое отправлено")
 
             await self.bot.send_message(self.chat_id, f"[UCP] {count} заявлений. Застой начался.")
 
@@ -107,8 +96,6 @@ class Scheduler:
             return
 
         if self.stagnation_first_alert and self.stagnation_tick >= 3:
-            self.logger.warning(f"Повторное сообщение о застое (tick={self.stagnation_tick})")
-
             await self.bot.send_message(self.chat_id, f"[UCP] {count} заявлений. Застой продолжается")
 
             self.stagnation_tick = 0
