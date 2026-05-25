@@ -21,11 +21,6 @@ auth = {
 def create_auth_router(auth_browser, user_id: int):
     router = Router()
 
-    @router.message(Command("msg"), F.from_user.id == user_id)
-    async def cmd_msg(msg: Message):
-        sent = await msg.answer("Soon...")
-        await msg.answer(f"Message ID: {sent.message_id}")
-
     @router.message(AuthStates.login, F.from_user.id == user_id)
     async def step_login(msg: Message, state: FSMContext):
         await state.update_data(login=msg.text)
